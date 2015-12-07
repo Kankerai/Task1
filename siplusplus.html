@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+</head>
+<body>
+<script>
+    var exampleMatrixXY = [[0, 1, 2], [1, 2, 3], [2, 3, 4]];
+
+    function SudokuPro () {
+        console.log("INIT");
+        this.matrixParameters = {
+            highs: 0,
+            width: 0,
+            numberOfElements: 0
+        };
+        this.rowStack = [];
+        this.decisionStack = [];
+        this.bestDecisionStack = [];
+        console.log("var init complete");
+
+        this.takeMatrixParameters(exampleMatrixXY);
+        this.buildRows(exampleMatrixXY, this.matrixParameters);
+        this.createFirstKids(exampleMatrixXY, this.rowStack, this.matrixParameters);
+        console.log("createFirstKids");
+        this.defineDecisions(this.decisionStack, exampleMatrixXY);
+        console.log("defineDecisions");
+        this.defineBestDecisions(this.decisionStack);
+        console.log("defineBestDecisions");
+        this.printDecisions(this.bestDecisionStack, exampleMatrixXY, this.matrixParameters);
+        console.log("DONE");
+
+        console.log(this.matrixParameters);
+        console.log(this.rowStack);
+    }
+
+    SudokuPro.prototype.takeMatrixParameters = function(matrix) {
+        var that = this;
+        that.matrixParameters.highs = matrix.length;
+        that.matrixParameters.width = matrix[0].length;
+        that.matrixParameters.numberOfElements = matrix.length * matrix[0].length;
+    };
+
+    SudokuPro.prototype.getNeighbors = function(i, j, matrixParam) {
+        this.neighborStack = [];
+        if(i !== 0) {
+            this.neighborStack[this.neighborStack.length] = [];
+            this.neighborStack[this.neighborStack.length - 1][0] = i - 1;
+            this.neighborStack[this.neighborStack.length - 1][1] = j;
+        }
+        if(i !== matrixParam.highs - 1) {
+            this.neighborStack[this.neighborStack.length] = [];
+            this.neighborStack[this.neighborStack.length - 1][0] = i + 1;
+            this.neighborStack[this.neighborStack.length - 1][1] = j;
+        }
+        if(j !== 0) {
+            this.neighborStack[this.neighborStack.length] = [];
+            this.neighborStack[this.neighborStack.length - 1][0] = i;
+            this.neighborStack[this.neighborStack.length - 1][1] = j - 1;
+        }
+        if(j !== matrixParam.width - 1) {
+            this.neighborStack[this.neighborStack.length] = [];
+            this.neighborStack[this.neighborStack.length - 1][0] = i;
+            this.neighborStack[this.neighborStack.length - 1][1] = j + 1;
+        }
+        return this.neighborStack;
+    };
+
+    SudokuPro.prototype.kid = function(obj, list, e, matrix) {
+        var forbidenPit = obj.forbidden;
+        forbidenPit[forbidenPit.length] = [list[e][0], list[e][1]];
+        obj.kids[obj.kids.length] = {
+            ii: list[e][0],
+            jj: list[e][1],
+            value: matrix[list[e][0]][list[e][1]],
+            brunchSum: matrix[list[e][0]][list[e][1]] + obj.brunchSum,
+            status: "on run",
+            kids: [],
+            forbidden: forbidenPit
+        };
+//        obj.kids[obj.kids.length - 1].forbidden[obj.kids[obj.kids.length - 1].forbidden.length] = [list[e][0], list[e][1]];
+        console.log(obj.kids[obj.kids.length - 1])
+    };
+
+    SudokuPro.prototype.buildRows = function(matrix, matrixParameters) {
+        var that = this;
+        for(var i = 0; i < matrixParameters.highs; i++) {
+            for(var j =0; j < matrixParameters.width; j++) {
+                that.rowStack[that.rowStack.length] = {
+                    ii: i,
+                    jj: j,
+                    value: matrix[i][j],
+                    brunchSum: matrix[i][j],
+                    status: "on run",
+                    kids: [],
+                    forbidden: [[i, j]]
+                };
+            }
+        }
+    };
+
+    SudokuPro.prototype.createKids = function(obj, matrixParam, matrix) {
+        var that = this;
+        if(obj.status != "spoiled" && obj.status != "10") {
+            console.log("FLAG");
+            var list = that.getNeighbors(obj.ii, obj.jj, matrixParam);
+            for(var e = 0; e < list.length; e++) {
+                for(var ee = 0; ee < obj.forbidden.length; ee++) {
+                    if(list[e] == obj.forbidden[ee]) {
+                        console.log("forbiden pit");
+                        break;
+                    }
+                }
+                that.kid(obj, list, e, matrix);
+                if(obj.kids[obj.kids.length - 1].brunchSum === 10) {
+                    obj.kids[obj.kids.length - 1].status = "10";
+                    that.decisionStack[that.decisionStack.length] = {
+                        positionList: obj.forbidden,
+                        display: [],
+                        pointSum: 0
+                    };
+                } else if(10 < obj.kids[obj.kids.length - 1].brunchSum) {
+                    obj.kids[obj.kids.length - 1].status = "spoiled";
+                } else {
+                    console.log("recurtion activated");
+                    that.createKids(obj.kids[obj.kids.length - 1], matrixParam, matrix);
+                }
+            }
+        }
+    };
+
+    SudokuPro.prototype.createFirstKids = function(matrix, rowStack, matrixParam) {
+        var that = this;
+        for(var w = 0; w < rowStack.length; w++) {
+            that.createKids(rowStack[w], matrixParam, matrix)
+        }
+    };
+
+    SudokuPro.prototype.defineDecisions = function(decision, matrix) {
+        for(var r = 0; r < decision.length; r++) {
+            for(var rr = 0; rr < decision[r].positionList.length; rr++) {
+                decision[r].display[decision[r].display.length] = matrix[decision[r].positionList[rr][0]][decision[r].positionList[rr][1]];
+            }
+            decision[r].pointSum = decision[r].display[0] * 1000 + decision[r].display[1] * 100 + decision[r].display[2] * 10;
+        }
+    };
+
+    SudokuPro.prototype.defineBestDecisions = function(decision) {
+        var that = this;
+        that.bestDecisionStack[0] = decision[0];
+        for(var d = 1; d < decision.length; d++) {
+            if(that.bestDecisionStack[0].pointSum < decision[d].pointSum) {
+                that.bestDecisionStack = [];
+                that.bestDecisionStack[0] = decision[d];
+            } else if(that.bestDecisionStack[0].pointSum === decision[d].pointSum) {
+                that.bestDecisionStack[that.bestDecisionStack.length] = decision[d];
+            }
+        }
+    };
+
+    SudokuPro.prototype.printDecisions = function(toPrint, matrix, param) {
+        var matrixStringExpression = "Following matrix has been resived as initial data.\n";
+        for(var iii = 0; iii < param.highs; iii++) {
+            matrixStringExpression += "| ";
+            for(var jjj = 0; jjj < param.width; jjj++) {
+                matrixStringExpression += matrix[iii][jjj] + " ";
+            }
+            matrixStringExpression += " |\n"
+        }
+        var doVerb = "is";
+        if(1 < toPrint.length) {
+            doVerb = "are"
+        }
+        var decisionStringExpression = "Umong existing decisions best " + doVerb + ":\n";
+        for(var dd = 0; dd < toPrint.length; dd++) {
+            decisionStringExpression += toPrint[dd].display + " row, starting at ";
+            decisionStringExpression += toPrint[dd].positionList[0] + " with total result of ";
+            decisionStringExpression += toPrint[dd].pointSum + " points\n"
+        }
+        console.log(matrixStringExpression);
+        console.log(decisionStringExpression);
+    };
+
+    var aaaInint = new SudokuPro();
+</script>
+</body>
+</html>
